@@ -354,16 +354,19 @@
     .clothing-table { width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid var(--line); background: var(--card); }
     .clothing-table th, .clothing-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
     .clothing-table th { color: var(--muted); font-size: 11px; font-weight: 700; }
-    .clothing-table th:nth-child(2) { width: 92px; }
+    .clothing-table th:first-child { width: 34px; }
+    .clothing-table th:nth-child(3) { width: 92px; }
     .clothing-table th:last-child { width: 76px; text-align: right; }
     .clothing-table tbody tr:last-child td { border-bottom: 0; }
     .clothing-table .item-extra { max-width: 100%; margin-top: 0; padding: 4px 6px; white-space: nowrap; }
+    .clothing-row-icon { color: var(--muted); text-align: center !important; }
     .clothing-description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .clothing-actions { display: flex; justify-content: flex-end; gap: 2px; }
 
     @media (max-width: 650px) {
       .clothing-table th, .clothing-table td { padding: 7px 6px; }
-      .clothing-table th:nth-child(2) { width: 82px; }
+      .clothing-table th:first-child { width: 28px; }
+      .clothing-table th:nth-child(3) { width: 82px; }
       .clothing-table th:last-child { width: 68px; }
     }
 
@@ -999,6 +1002,7 @@
           : clothingItems.filter(item => item.owner === clothingFilter);
         const rows = visibleItems.map(item => `
           <tr>
+            <td class="clothing-row-icon" aria-hidden="true">👕</td>
             <td class="clothing-description" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
             <td><span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner || "Sense etiqueta")}</span></td>
             <td><div class="clothing-actions">
@@ -1018,7 +1022,7 @@
                   data-action="clothing-filter" data-filter="${key}" aria-pressed="${clothingFilter === key}">${label}</button>`).join("")}
             </div>
             ${rows ? `<table class="clothing-table" aria-label="Roba guardada">
-              <thead><tr><th scope="col">Descripció</th><th scope="col">De qui</th><th scope="col">Accions</th></tr></thead>
+              <thead><tr><th scope="col" aria-label="Peça"></th><th scope="col">Descripció</th><th scope="col">De qui</th><th scope="col">Accions</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>` : `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}
           </div>`;
