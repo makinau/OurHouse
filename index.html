@@ -207,50 +207,6 @@
     h1 { margin: 0; font-size: clamp(29px, 3.2vw, 40px); letter-spacing: -1.7px; line-height: 1.12; }
     .welcome-copy { position: relative; margin: 11px 0 0; color: #e0eee4; font-size: 15px; }
 
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 15px;
-      margin-bottom: 34px;
-    }
-
-    .summary-card {
-      display: flex;
-      min-height: 112px;
-      align-items: flex-start;
-      gap: 13px;
-      padding: 19px;
-      border: 1px solid var(--line);
-      border-radius: 15px;
-      background: var(--card);
-      box-shadow: var(--shadow);
-      transition: transform .18s, box-shadow .18s;
-    }
-
-    .summary-card:hover { transform: translateY(-3px); box-shadow: 0 18px 36px rgb(40 63 53 / 12%); }
-    .summary-card:nth-child(1) { border-top: 3px solid #6aa67e; }
-    .summary-card:nth-child(2) { border-top: 3px solid #e8a263; }
-    .summary-card:nth-child(3) { border-top: 3px solid #779bc5; }
-    .summary-card:nth-child(4) { border-top: 3px solid #b78ab6; }
-
-    .summary-icon {
-      display: grid;
-      width: 38px;
-      height: 38px;
-      flex: 0 0 auto;
-      place-items: center;
-      border-radius: 12px;
-      color: #2e6754;
-      background: #e5f1e9;
-      font-size: 18px;
-    }
-
-    .summary-card:nth-child(2) .summary-icon { color: #a75f2c; background: #fbecdc; }
-    .summary-card:nth-child(3) .summary-icon { color: #4b729a; background: #e8eff8; }
-    .summary-card:nth-child(4) .summary-icon { color: #825983; background: #f3eaf3; }
-    .summary-label { margin: 0 0 7px; color: var(--muted); font-size: 12px; }
-    .summary-number { margin: 0; font-size: 24px; font-weight: 750; letter-spacing: -.8px; }
-
     .section {
       display: none;
       animation: appear .2s ease-out;
@@ -426,7 +382,6 @@
     @media (max-width: 900px) {
       .sidebar { width: 210px; }
       main { margin-left: 210px; padding-right: 28px; padding-left: 28px; }
-      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 650px) {
@@ -440,17 +395,11 @@
       main { margin-left: 0; padding: 0 18px 40px; }
       .topbar { height: 58px; }
       .welcome { padding-top: 28px; }
-      .summary-grid { gap: 9px; margin-bottom: 28px; }
-      .summary-card { min-height: 96px; gap: 9px; padding: 13px; }
-      .summary-icon { width: 32px; height: 32px; font-size: 15px; }
-      .summary-number { font-size: 20px; }
       .section-heading { align-items: flex-start; }
       .item-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 390px) {
-      .summary-card { display: block; }
-      .summary-icon { margin-bottom: 9px; }
       .section-heading { flex-direction: column; }
     }
   </style>
@@ -490,29 +439,6 @@
           <h1>La casa, ben endreçada.</h1>
           <p class="welcome-copy">Un lloc senzill per tenir a mà la informació important de casa.</p>
         </header>
-
-        <div class="summary-grid" aria-label="Resum de continguts">
-          <article class="summary-card">
-            <span class="summary-icon" aria-hidden="true">⌂</span>
-            <div><p class="summary-label">El pis</p><p class="summary-number" id="count-pis">0</p></div>
-          </article>
-          <article class="summary-card">
-            <span class="summary-icon" aria-hidden="true">▤</span>
-            <div><p class="summary-label">Garatge</p><p class="summary-number" id="count-garatge">0</p></div>
-          </article>
-          <article class="summary-card">
-            <span class="summary-icon" aria-hidden="true">◉</span>
-            <div><p class="summary-label">Serveis actius</p><p class="summary-number" id="count-serveis">0</p></div>
-          </article>
-          <article class="summary-card">
-            <span class="summary-icon" aria-hidden="true">▧</span>
-            <div><p class="summary-label">Plànols</p><p class="summary-number" id="count-planols">0</p></div>
-          </article>
-          <article class="summary-card">
-            <span class="summary-icon" aria-hidden="true">▣</span>
-            <div><p class="summary-label">Documents</p><p class="summary-number" id="count-documents">0</p></div>
-          </article>
-        </div>
 
         <section class="section active" id="section-resum">
           <div class="section-heading">
@@ -1008,8 +934,6 @@
             ${key === "garatge" ? renderGarageFilters() : ""}
             <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha cap ${category.singular}. Afegeix-ne un per tenir-lo a mà.</div>`}</div>
             ${key === "garatge" ? renderClothingSection() + renderToolSection() : ""}`;
-          const count = items[key].length + (key === "garatge" ? clothingItems.length + toolItems.length : 0);
-          document.getElementById(`count-${key}`).textContent = count;
         }
       }
 
