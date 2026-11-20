@@ -319,7 +319,6 @@
     .owner-tag.owner-queralt { color: #76508a; background: #f1e8f7; }
     .owner-tag.owner-dani { color: #3d6890; background: #e7f0f8; }
     .owner-tag.owner-estel { color: #a34f68; background: #faeaf0; }
-    .owner-tag.owner-donar { color: #3f7657; background: #e5f2e8; }
 
     .item-link {
       display: inline-flex;
@@ -349,6 +348,9 @@
       font-weight: 650;
     }
     .garage-filter:hover, .garage-filter.active { border-color: #b7d5c2; color: #285d49; background: #e5f1e9; }
+
+    .clothing-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .clothing-heading h3 { margin: 0; font-size: 18px; }
 
     .empty-state {
       grid-column: 1 / -1;
@@ -506,7 +508,7 @@
             </article>
             <article class="item-card">
               <p class="item-title">🚗 El garatge</p>
-              <p class="item-detail">Places, comandaments, vehicles i informació útil de l'aparcament.</p>
+              <p class="item-detail">Places, vehicles, accés i roba guardada.</p>
               <a class="item-link" href="#garatge" data-go="garatge">Obrir el garatge →</a>
             </article>
             <article class="item-card">
@@ -571,7 +573,6 @@
         <label for="garage-type">Apartat del garatge</label>
         <select id="garage-type" name="garageType">
           <option value="eines">Eines</option>
-          <option value="roba">Roba emmagatzemada</option>
           <option value="drogueria">Producte de drogueria</option>
           <option value="residus">Residus per tirar</option>
           <option value="altres">Altres</option>
@@ -585,7 +586,6 @@
           <option value="Queralt">Queralt</option>
           <option value="Dani">Dani</option>
           <option value="Estel">Estel</option>
-          <option value="Per donar">Per donar</option>
         </select>
       </div>
       <div class="field" id="expiry-field" hidden>
@@ -628,7 +628,6 @@
         : null;
       const garageTypes = {
         eines: "Eines",
-        roba: "Roba emmagatzemada",
         drogueria: "Producte de drogueria",
         residus: "Residus per tirar",
         altres: "Altres"
@@ -637,12 +636,11 @@
         Ernest: "owner-ernest",
         Queralt: "owner-queralt",
         Dani: "owner-dani",
-        Estel: "owner-estel",
-        "Per donar": "owner-donar"
+        Estel: "owner-estel"
       };
       const categories = {
         pis: { title: "El pis", subtitle: "Dades, manteniment i informació important de l'habitatge.", icon: "⌂", singular: "element" },
-        garatge: { title: "El garatge", subtitle: "Informació útil de la plaça, els vehicles i l'accés.", icon: "▤", singular: "element" },
+        garatge: { title: "El garatge", subtitle: "Informació útil de la plaça, els vehicles, l'accés i la roba guardada.", icon: "▤", singular: "element" },
         serveis: { title: "Serveis contractats", subtitle: "Proveïdors, dades de client i informació de contacte.", icon: "◉", singular: "servei" },
         planols: { title: "Plànols", subtitle: "Plànols i documents tècnics de casa en un sol lloc.", icon: "▧", singular: "plànol" },
         documents: { title: "Documents importants", subtitle: "Hipoteca, escriptures i altres documents importants de la llar.", icon: "▣", singular: "document" }
@@ -664,8 +662,10 @@
         documents: []
       };
       let items;
+      let clothingItems = [];
       let currentCategory = "pis";
       let garageFilter = "tots";
+      let clothingFilter = "tots";
       let editingId = null;
       let toastTimer;
       const dialog = document.getElementById("item-dialog");
@@ -725,6 +725,8 @@
         let legacyItems = null;
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) legacyItems = normalizeItems(JSON.parse(saved));
+        const legacyClothing = legacyItems?.garatge.filter(item => item.garageType === "roba") ?? [];
+        if (legacyItems) legacyItems.garatge = legacyItems.garatge.filter(item => item.garageType !== "roba");
 
         let row = await getStoredData();
         let legacyImported = false;
@@ -747,6 +749,7 @@
         }
         items = normalizeItems(row.items);
         dataVersion = row.updated_at;
+        await loadClothingItems(legacyClothing);
         if (legacyItems) {
           if (legacyImported || JSON.stringify(legacyItems) === JSON.stringify(items)) {
             localStorage.removeItem(STORAGE_KEY);
@@ -760,6 +763,28 @@
             }
           }
         }
+      }
+
+      async function loadClothingItems(legacyItems = []) {
+        if (legacyItems.length) {
+          const validOwners = ["Ernest", "Queralt", "Dani", "Estel"];
+          const legacyRows = legacyItems.filter(item => item.id && item.name).map(item => ({
+            id: item.id,
+            name: item.name,
+            detail: item.detail || "",
+            owner: validOwners.includes(item.owner) ? item.owner : null
+          }));
+          if (legacyRows.length) {
+            const { error } = await supabase.from("clothing_items").upsert(legacyRows);
+            if (error) throw error;
+          }
+        }
+        const { data, error } = await supabase
+          .from("clothing_items")
+          .select("id, name, detail, owner, created_at")
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+        clothingItems = data;
       }
 
       async function saveItems(previousItems) {
@@ -876,6 +901,7 @@
       document.getElementById("download-json").addEventListener("click", async () => {
         try {
           const exportItems = structuredClone(items);
+          exportItems.roba = structuredClone(clothingItems);
           for (const category of ["planols", "documents"]) {
             const filesToExport = exportItems[category].filter(item => item.pdfPath && !item.pdfData);
             for (const item of filesToExport) {
@@ -934,7 +960,6 @@
               <p class="item-title">${escapeHtml(item.name)}</p>
               <p class="item-detail">${escapeHtml(item.detail || "Sense detalls.")}</p>
               ${key === "garatge" && item.garageType ? `<span class="item-extra">${escapeHtml(garageTypes[item.garageType] || garageTypes.altres)}</span>` : ""}
-              ${key === "garatge" && item.garageType === "roba" && item.owner ? `<span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner)}</span>` : ""}
               ${key === "garatge" && item.garageType === "drogueria" && item.expiry ? renderExpiry(item.expiry) : ""}
               ${key === "serveis" ? '<span class="item-extra">Contractat</span>' : ""}
               ${key === "pis" && item.name.toLowerCase().includes("garantia") ? '<span class="item-extra warning">Revisa les dates</span>' : ""}
@@ -947,19 +972,50 @@
               <button class="add-button" type="button" data-action="add" data-category="${key}"><span aria-hidden="true">＋</span> ${addLabel}</button>
             </div>
             ${key === "garatge" ? renderGarageFilters() : ""}
-            <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha cap ${category.singular}. Afegeix-ne un per tenir-lo a mà.</div>`}</div>`;
-          const count = items[key].length;
+            <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha cap ${category.singular}. Afegeix-ne un per tenir-lo a mà.</div>`}</div>
+            ${key === "garatge" ? renderClothingSection() : ""}`;
+          const count = items[key].length + (key === "garatge" ? clothingItems.length : 0);
           document.getElementById(`count-${key}`).textContent = count;
         }
+      }
+
+      function renderClothingSection() {
+        const owners = ["Ernest", "Queralt", "Dani", "Estel"];
+        const visibleItems = clothingFilter === "tots"
+          ? clothingItems
+          : clothingItems.filter(item => item.owner === clothingFilter);
+        const cards = visibleItems.map(item => `
+          <article class="item-card">
+            <div class="card-actions">
+              <button class="icon-button" type="button" aria-label="Editar ${escapeHtml(item.name)}" data-action="clothing-edit" data-id="${escapeHtml(item.id)}">✎</button>
+              <button class="icon-button delete" type="button" aria-label="Eliminar ${escapeHtml(item.name)}" data-action="clothing-delete" data-id="${escapeHtml(item.id)}">×</button>
+            </div>
+            <p class="item-title">${escapeHtml(item.name)}</p>
+            <p class="item-detail">${escapeHtml(item.detail || "Sense detalls.")}</p>
+            <span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner || "Sense etiqueta")}</span>
+          </article>`).join("");
+        return `
+          <div class="clothing-section">
+            <div class="section-heading clothing-heading">
+              <div><h3>Roba guardada</h3><p class="section-subtitle">Llista de peces de roba i de qui són.</p></div>
+              <button class="add-button" type="button" data-action="clothing-add"><span aria-hidden="true">＋</span> Afegir roba</button>
+            </div>
+            <div class="garage-filters" aria-label="Filtrar roba per persona">
+              ${[["tots", "Tothom"], ...owners.map(owner => [owner, owner])].map(([key, label]) => `
+                <button class="garage-filter${clothingFilter === key ? " active" : ""}" type="button"
+                  data-action="clothing-filter" data-filter="${key}" aria-pressed="${clothingFilter === key}">${label}</button>`).join("")}
+            </div>
+            <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}</div>
+          </div>`;
       }
 
       function renderGarageFilters() {
         const filters = {
           tots: "Tot",
           eines: "Eines",
-          roba: "Roba",
           drogueria: "Drogueria",
-          residus: "Residus"
+          residus: "Residus",
+          altres: "Altres"
         };
         return `<div class="garage-filters" aria-label="Filtrar contingut del garatge">
           ${Object.entries(filters).map(([key, label]) => `
@@ -1025,14 +1081,34 @@
         nameInput.focus();
       }
 
+      function openClothingForm(item = null) {
+        currentCategory = "roba";
+        editingId = item?.id ?? null;
+        document.getElementById("dialog-category").textContent = "Roba guardada";
+        document.getElementById("dialog-title").textContent = item ? "Editar peça de roba" : "Afegir peça de roba";
+        nameInput.value = item?.name ?? "";
+        detailInput.value = item?.detail ?? "";
+        clothingOwnerInput.value = item?.owner ?? "";
+        garageTypeField.hidden = true;
+        clothingOwnerField.hidden = false;
+        clothingOwnerInput.required = true;
+        expiryField.hidden = true;
+        linkField.hidden = true;
+        pdfField.hidden = true;
+        linkInput.value = "";
+        pdfInput.value = "";
+        dialog.showModal();
+        nameInput.focus();
+      }
+
       garageTypeInput.addEventListener("change", () => {
         updateGarageFields();
       });
 
       function updateGarageFields() {
         const isGarage = currentCategory === "garatge";
-        clothingOwnerField.hidden = !isGarage || garageTypeInput.value !== "roba";
-        clothingOwnerInput.required = !clothingOwnerField.hidden;
+        clothingOwnerField.hidden = true;
+        clothingOwnerInput.required = false;
         expiryField.hidden = !isGarage || garageTypeInput.value !== "drogueria";
         if (expiryField.hidden) expiryInput.value = "";
       }
@@ -1055,6 +1131,35 @@
         if (action === "garage-filter") {
           garageFilter = actionButton.dataset.filter;
           render();
+          return;
+        }
+        if (action === "clothing-filter") {
+          clothingFilter = actionButton.dataset.filter;
+          render();
+          return;
+        }
+        if (action === "clothing-add") {
+          openClothingForm();
+          return;
+        }
+        if (action === "clothing-edit") {
+          const clothingItem = clothingItems.find(entry => entry.id === id);
+          if (clothingItem) openClothingForm(clothingItem);
+          return;
+        }
+        if (action === "clothing-delete") {
+          const clothingItem = clothingItems.find(entry => entry.id === id);
+          if (!clothingItem || !window.confirm(`Vols eliminar «${clothingItem.name}»?`)) return;
+          try {
+            const { error } = await supabase.from("clothing_items").delete().eq("id", id);
+            if (error) throw error;
+            clothingItems = clothingItems.filter(entry => entry.id !== id);
+            render();
+            showToast("Peça eliminada.");
+          } catch (error) {
+            console.error("No s'ha pogut eliminar la peça de roba.", error);
+            showToast("No s'ha pogut eliminar la peça. Comprova la connexió i els permisos.");
+          }
           return;
         }
         if (action === "add") {
@@ -1120,8 +1225,39 @@
           return;
         }
         const link = linkInput.value.trim();
-        linkInput.setCustomValidity(link && !isSafeLink(link) ? "L'enllaç ha de començar per http:// o https://." : "");
+        linkInput.setCustomValidity(currentCategory === "planols" && link && !isSafeLink(link) ? "L'enllaç ha de començar per http:// o https://." : "");
         if (!form.reportValidity()) return;
+        if (currentCategory === "roba") {
+          const submitButton = form.querySelector('[type="submit"]');
+          submitButton.disabled = true;
+          try {
+            const clothingItem = {
+              id: editingId || `roba-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              name,
+              detail: detailInput.value.trim(),
+              owner: clothingOwnerInput.value
+            };
+            const { data, error } = await supabase
+              .from("clothing_items")
+              .upsert(clothingItem)
+              .select("id, name, detail, owner, created_at")
+              .single();
+            if (error) throw error;
+            const existingIndex = clothingItems.findIndex(item => item.id === editingId);
+            if (existingIndex >= 0) clothingItems[existingIndex] = data;
+            else clothingItems.push(data);
+            clothingItems.sort((first, second) => first.created_at.localeCompare(second.created_at));
+            render();
+            dialog.close();
+            showToast(editingId ? "Canvis desats." : "Peça afegida.");
+          } catch (error) {
+            console.error("No s'ha pogut desar la peça de roba.", error);
+            showToast("No s'ha pogut desar la peça. Comprova la connexió i els permisos.");
+          } finally {
+            submitButton.disabled = false;
+          }
+          return;
+        }
         const selectedPdf = currentCategory === "planols" || currentCategory === "documents" ? pdfInput.files[0] : null;
         const submitButton = form.querySelector('[type="submit"]');
         submitButton.disabled = true;
