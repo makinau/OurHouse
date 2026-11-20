@@ -349,25 +349,25 @@
     }
     .garage-filter:hover, .garage-filter.active { border-color: #b7d5c2; color: #285d49; background: #e5f1e9; }
 
-    .clothing-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
-    .clothing-heading h3 { margin: 0; font-size: 18px; }
-    .clothing-table { width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid var(--line); background: var(--card); }
-    .clothing-table th, .clothing-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
-    .clothing-table th { color: var(--muted); font-size: 11px; font-weight: 700; }
-    .clothing-table th:first-child { width: 34px; }
-    .clothing-table th:nth-child(3) { width: 92px; }
-    .clothing-table th:last-child { width: 76px; text-align: right; }
-    .clothing-table tbody tr:last-child td { border-bottom: 0; }
-    .clothing-table .item-extra { max-width: 100%; margin-top: 0; padding: 4px 6px; white-space: nowrap; }
-    .clothing-row-icon { color: var(--muted); text-align: center !important; }
-    .clothing-description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .clothing-actions { display: flex; justify-content: flex-end; gap: 2px; }
+    .garage-list-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .garage-list-heading h3 { margin: 0; font-size: 18px; }
+    .garage-list-table { width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid var(--line); background: var(--card); }
+    .garage-list-table th, .garage-list-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+    .garage-list-table th { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .garage-list-table th:first-child { width: 34px; }
+    .garage-list-table.clothing-table th:nth-child(3) { width: 92px; }
+    .garage-list-table th:last-child { width: 76px; text-align: right; }
+    .garage-list-table tbody tr:last-child td { border-bottom: 0; }
+    .garage-list-table .item-extra { max-width: 100%; margin-top: 0; padding: 4px 6px; white-space: nowrap; }
+    .garage-list-row-icon { color: var(--muted); text-align: center !important; }
+    .garage-list-description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .garage-list-actions { display: flex; justify-content: flex-end; gap: 2px; }
 
     @media (max-width: 650px) {
-      .clothing-table th, .clothing-table td { padding: 7px 6px; }
-      .clothing-table th:first-child { width: 28px; }
-      .clothing-table th:nth-child(3) { width: 82px; }
-      .clothing-table th:last-child { width: 68px; }
+      .garage-list-table th, .garage-list-table td { padding: 7px 6px; }
+      .garage-list-table th:first-child { width: 28px; }
+      .garage-list-table.clothing-table th:nth-child(3) { width: 82px; }
+      .garage-list-table th:last-child { width: 68px; }
     }
 
     .empty-state {
@@ -590,7 +590,6 @@
       <div class="field" id="garage-type-field" hidden>
         <label for="garage-type">Apartat del garatge</label>
         <select id="garage-type" name="garageType">
-          <option value="eines">Eines</option>
           <option value="drogueria">Producte de drogueria</option>
           <option value="residus">Residus per tirar</option>
           <option value="altres">Altres</option>
@@ -645,7 +644,6 @@
         })
         : null;
       const garageTypes = {
-        eines: "Eines",
         drogueria: "Producte de drogueria",
         residus: "Residus per tirar",
         altres: "Altres"
@@ -658,7 +656,7 @@
       };
       const categories = {
         pis: { title: "El pis", subtitle: "Dades, manteniment i informació important de l'habitatge.", icon: "⌂", singular: "element" },
-        garatge: { title: "El garatge", subtitle: "Informació útil de la plaça, els vehicles, l'accés i la roba guardada.", icon: "▤", singular: "element" },
+        garatge: { title: "El garatge", subtitle: "Informació útil de la plaça, els vehicles, l'accés, la roba i les eines.", icon: "▤", singular: "element" },
         serveis: { title: "Serveis contractats", subtitle: "Proveïdors, dades de client i informació de contacte.", icon: "◉", singular: "servei" },
         planols: { title: "Plànols", subtitle: "Plànols i documents tècnics de casa en un sol lloc.", icon: "▧", singular: "plànol" },
         documents: { title: "Documents importants", subtitle: "Hipoteca, escriptures i altres documents importants de la llar.", icon: "▣", singular: "document" }
@@ -681,6 +679,7 @@
       };
       let items;
       let clothingItems = [];
+      let toolItems = [];
       let currentCategory = "pis";
       let garageFilter = "tots";
       let clothingFilter = "tots";
@@ -744,7 +743,8 @@
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) legacyItems = normalizeItems(JSON.parse(saved));
         const legacyClothing = legacyItems?.garatge.filter(item => item.garageType === "roba") ?? [];
-        if (legacyItems) legacyItems.garatge = legacyItems.garatge.filter(item => item.garageType !== "roba");
+        const legacyTools = legacyItems?.garatge.filter(item => item.garageType === "eines") ?? [];
+        if (legacyItems) legacyItems.garatge = legacyItems.garatge.filter(item => !["roba", "eines"].includes(item.garageType));
 
         let row = await getStoredData();
         let legacyImported = false;
@@ -768,6 +768,7 @@
         items = normalizeItems(row.items);
         dataVersion = row.updated_at;
         await loadClothingItems(legacyClothing);
+        await loadToolItems(legacyTools);
         if (legacyItems) {
           if (legacyImported || JSON.stringify(legacyItems) === JSON.stringify(items)) {
             localStorage.removeItem(STORAGE_KEY);
@@ -801,6 +802,22 @@
           .select("id, description, owner");
         if (error) throw error;
         clothingItems = data;
+      }
+
+      async function loadToolItems(legacyItems = []) {
+        const legacyRows = legacyItems.filter(item => item.id && (item.name || item.detail)).map(item => ({
+          id: item.id,
+          description: [item.name, item.detail].filter(Boolean).join("\n\n") || "Sense descripció"
+        }));
+        if (legacyRows.length) {
+          const { error } = await supabase.from("garage_tools").upsert(legacyRows);
+          if (error) throw error;
+        }
+        const { data, error } = await supabase
+          .from("garage_tools")
+          .select("id, description");
+        if (error) throw error;
+        toolItems = data;
       }
 
       async function saveItems(previousItems) {
@@ -918,6 +935,7 @@
         try {
           const exportItems = structuredClone(items);
           exportItems.roba = structuredClone(clothingItems);
+          exportItems.eines = structuredClone(toolItems);
           for (const category of ["planols", "documents"]) {
             const filesToExport = exportItems[category].filter(item => item.pdfPath && !item.pdfData);
             for (const item of filesToExport) {
@@ -989,8 +1007,8 @@
             </div>
             ${key === "garatge" ? renderGarageFilters() : ""}
             <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha cap ${category.singular}. Afegeix-ne un per tenir-lo a mà.</div>`}</div>
-            ${key === "garatge" ? renderClothingSection() : ""}`;
-          const count = items[key].length + (key === "garatge" ? clothingItems.length : 0);
+            ${key === "garatge" ? renderClothingSection() + renderToolSection() : ""}`;
+          const count = items[key].length + (key === "garatge" ? clothingItems.length + toolItems.length : 0);
           document.getElementById(`count-${key}`).textContent = count;
         }
       }
@@ -1002,36 +1020,58 @@
           : clothingItems.filter(item => item.owner === clothingFilter);
         const rows = visibleItems.map(item => `
           <tr>
-            <td class="clothing-row-icon" aria-hidden="true">👕</td>
-            <td class="clothing-description" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
+            <td class="garage-list-row-icon" aria-hidden="true">👕</td>
+            <td class="garage-list-description" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
             <td><span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner || "Sense etiqueta")}</span></td>
-            <td><div class="clothing-actions">
-              <button class="icon-button" type="button" aria-label="Editar roba" data-action="clothing-edit" data-id="${escapeHtml(item.id)}">✎</button>
-              <button class="icon-button delete" type="button" aria-label="Eliminar roba" data-action="clothing-delete" data-id="${escapeHtml(item.id)}">×</button>
+            <td><div class="garage-list-actions">
+              <button class="icon-button" type="button" aria-label="Editar roba" data-action="garage-list-edit" data-list="roba" data-id="${escapeHtml(item.id)}">✎</button>
+              <button class="icon-button delete" type="button" aria-label="Eliminar roba" data-action="garage-list-delete" data-list="roba" data-id="${escapeHtml(item.id)}">×</button>
             </div></td>
           </tr>`).join("");
         return `
-          <div class="clothing-section">
-            <div class="section-heading clothing-heading">
+          <div class="garage-list-section">
+            <div class="section-heading garage-list-heading">
               <div><h3>Roba guardada</h3><p class="section-subtitle">Llista de peces de roba i de qui són.</p></div>
-              <button class="add-button" type="button" data-action="clothing-add"><span aria-hidden="true">＋</span> Afegir roba</button>
+              <button class="add-button" type="button" data-action="garage-list-add" data-list="roba"><span aria-hidden="true">＋</span> Afegir roba</button>
             </div>
             <div class="garage-filters" aria-label="Filtrar roba per persona">
               ${[["tots", "Tothom"], ...owners.map(owner => [owner, owner])].map(([key, label]) => `
                 <button class="garage-filter${clothingFilter === key ? " active" : ""}" type="button"
                   data-action="clothing-filter" data-filter="${key}" aria-pressed="${clothingFilter === key}">${label}</button>`).join("")}
             </div>
-            ${rows ? `<table class="clothing-table" aria-label="Roba guardada">
+            ${rows ? `<table class="garage-list-table clothing-table" aria-label="Roba guardada">
               <thead><tr><th scope="col" aria-label="Peça"></th><th scope="col">Descripció</th><th scope="col">De qui</th><th scope="col">Accions</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>` : `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}
           </div>`;
       }
 
+      function renderToolSection() {
+        const rows = toolItems.map(item => `
+          <tr>
+            <td class="garage-list-row-icon" aria-hidden="true">🔧</td>
+            <td class="garage-list-description" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
+            <td><div class="garage-list-actions">
+              <button class="icon-button" type="button" aria-label="Editar eina" data-action="garage-list-edit" data-list="eines" data-id="${escapeHtml(item.id)}">✎</button>
+              <button class="icon-button delete" type="button" aria-label="Eliminar eina" data-action="garage-list-delete" data-list="eines" data-id="${escapeHtml(item.id)}">×</button>
+            </div></td>
+          </tr>`).join("");
+        return `
+          <div class="garage-list-section">
+            <div class="section-heading garage-list-heading">
+              <div><h3>Eines guardades</h3><p class="section-subtitle">Llista d'eines del garatge.</p></div>
+              <button class="add-button" type="button" data-action="garage-list-add" data-list="eines"><span aria-hidden="true">＋</span> Afegir eina</button>
+            </div>
+            ${rows ? `<table class="garage-list-table tools-table" aria-label="Eines guardades">
+              <thead><tr><th scope="col" aria-label="Eina"></th><th scope="col">Descripció</th><th scope="col">Accions</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>` : `<div class="empty-state">Encara no hi ha eines guardades. Afegeix-ne la primera.</div>`}
+          </div>`;
+      }
+
       function renderGarageFilters() {
         const filters = {
           tots: "Tot",
-          eines: "Eines",
           drogueria: "Drogueria",
           residus: "Residus",
           altres: "Altres"
@@ -1093,7 +1133,7 @@
         pdfStatus.textContent = item?.pdfName
           ? `PDF adjunt: ${item.pdfName}. Si n'adjuntes un altre, se substituirà.`
           : "Els PDFs s'emmagatzemen de manera privada al servidor.";
-        garageTypeInput.value = item ? item.garageType ?? "altres" : (garageFilter !== "tots" ? garageFilter : "eines");
+        garageTypeInput.value = item ? item.garageType ?? "altres" : (garageFilter !== "tots" ? garageFilter : "altres");
         clothingOwnerInput.value = item?.owner ?? "";
         expiryInput.value = item?.expiry ?? "";
         garageTypeField.hidden = category !== "garatge";
@@ -1105,22 +1145,24 @@
         nameInput.focus();
       }
 
-      function openClothingForm(item = null) {
-        currentCategory = "roba";
+      function openGarageListForm(listType, item = null) {
+        const isClothing = listType === "roba";
+        const label = isClothing ? "roba" : "eina";
+        currentCategory = listType;
         editingId = item?.id ?? null;
-        document.getElementById("dialog-category").textContent = "Roba guardada";
-        document.getElementById("dialog-title").textContent = item ? "Editar peça de roba" : "Afegir peça de roba";
+        document.getElementById("dialog-category").textContent = isClothing ? "Roba guardada" : "Eines guardades";
+        document.getElementById("dialog-title").textContent = item ? `Editar ${label}` : `Afegir ${label}`;
         nameInput.value = "";
         nameInput.required = false;
         nameInput.closest(".field").hidden = true;
         detailInput.labels[0].textContent = "Descripció";
-        detailInput.placeholder = "Descriu la peça de roba…";
+        detailInput.placeholder = isClothing ? "Descriu la peça de roba…" : "Descriu l'eina…";
         detailInput.required = true;
         detailInput.value = item?.description ?? "";
         clothingOwnerInput.value = item?.owner ?? "";
+        clothingOwnerField.hidden = !isClothing;
+        clothingOwnerInput.required = isClothing;
         garageTypeField.hidden = true;
-        clothingOwnerField.hidden = false;
-        clothingOwnerInput.required = true;
         expiryField.hidden = true;
         linkField.hidden = true;
         pdfField.hidden = true;
@@ -1167,27 +1209,32 @@
           render();
           return;
         }
-        if (action === "clothing-add") {
-          openClothingForm();
+        if (action === "garage-list-add") {
+          openGarageListForm(actionButton.dataset.list);
           return;
         }
-        if (action === "clothing-edit") {
-          const clothingItem = clothingItems.find(entry => entry.id === id);
-          if (clothingItem) openClothingForm(clothingItem);
+        if (action === "garage-list-edit") {
+          const listType = actionButton.dataset.list;
+          const list = listType === "roba" ? clothingItems : toolItems;
+          const item = list.find(entry => entry.id === id);
+          if (item) openGarageListForm(listType, item);
           return;
         }
-        if (action === "clothing-delete") {
-          const clothingItem = clothingItems.find(entry => entry.id === id);
-          if (!clothingItem || !window.confirm("Vols eliminar aquesta peça de roba?")) return;
+        if (action === "garage-list-delete") {
+          const listType = actionButton.dataset.list;
+          const isClothing = listType === "roba";
+          const list = isClothing ? clothingItems : toolItems;
+          if (!list.some(entry => entry.id === id) || !window.confirm(`Vols eliminar aquesta ${isClothing ? "peça de roba" : "eina"}?`)) return;
           try {
-            const { error } = await supabase.from("clothing_items").delete().eq("id", id);
+            const { error } = await supabase.from(isClothing ? "clothing_items" : "garage_tools").delete().eq("id", id);
             if (error) throw error;
-            clothingItems = clothingItems.filter(entry => entry.id !== id);
+            if (isClothing) clothingItems = clothingItems.filter(entry => entry.id !== id);
+            else toolItems = toolItems.filter(entry => entry.id !== id);
             render();
-            showToast("Peça eliminada.");
+            showToast(isClothing ? "Peça eliminada." : "Eina eliminada.");
           } catch (error) {
-            console.error("No s'ha pogut eliminar la peça de roba.", error);
-            showToast("No s'ha pogut eliminar la peça. Comprova la connexió i els permisos.");
+            console.error("No s'ha pogut eliminar l'element del garatge.", error);
+            showToast("No s'ha pogut eliminar l'element. Comprova la connexió i els permisos.");
           }
           return;
         }
@@ -1249,39 +1296,41 @@
       form.addEventListener("submit", async event => {
         event.preventDefault();
         const isClothing = currentCategory === "roba";
+        const isGarageList = isClothing || currentCategory === "eines";
         const name = nameInput.value.trim();
         const description = detailInput.value.trim();
-        if (isClothing ? !description : !name) {
-          (isClothing ? detailInput : nameInput).focus();
+        if (isGarageList ? !description : !name) {
+          (isGarageList ? detailInput : nameInput).focus();
           return;
         }
         const link = linkInput.value.trim();
         linkInput.setCustomValidity(currentCategory === "planols" && link && !isSafeLink(link) ? "L'enllaç ha de començar per http:// o https://." : "");
         if (!form.reportValidity()) return;
-        if (currentCategory === "roba") {
+        if (isGarageList) {
           const submitButton = form.querySelector('[type="submit"]');
           submitButton.disabled = true;
           try {
-            const clothingItem = {
-              id: editingId || `roba-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            const listItem = {
+              id: editingId || `${currentCategory}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               description,
-              owner: clothingOwnerInput.value
+              ...(isClothing ? { owner: clothingOwnerInput.value } : {})
             };
             const { data, error } = await supabase
-              .from("clothing_items")
-              .upsert(clothingItem)
-              .select("id, description, owner")
+              .from(isClothing ? "clothing_items" : "garage_tools")
+              .upsert(listItem)
+              .select(isClothing ? "id, description, owner" : "id, description")
               .single();
             if (error) throw error;
-            const existingIndex = clothingItems.findIndex(item => item.id === editingId);
-            if (existingIndex >= 0) clothingItems[existingIndex] = data;
-            else clothingItems.push(data);
+            const list = isClothing ? clothingItems : toolItems;
+            const existingIndex = list.findIndex(item => item.id === editingId);
+            if (existingIndex >= 0) list[existingIndex] = data;
+            else list.push(data);
             render();
             dialog.close();
-            showToast(editingId ? "Canvis desats." : "Peça afegida.");
+            showToast(editingId ? "Canvis desats." : isClothing ? "Peça afegida." : "Eina afegida.");
           } catch (error) {
-            console.error("No s'ha pogut desar la peça de roba.", error);
-            showToast("No s'ha pogut desar la peça. Comprova la connexió i els permisos.");
+            console.error("No s'ha pogut desar l'element del garatge.", error);
+            showToast("No s'ha pogut desar l'element. Comprova la connexió i els permisos.");
           } finally {
             submitButton.disabled = false;
           }

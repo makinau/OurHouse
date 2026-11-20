@@ -187,6 +187,73 @@ create policy "Household members can delete clothing"
     )
   );
 
+create table if not exists public.garage_tools (
+  id text primary key,
+  description text not null check (length(trim(description)) > 0)
+);
+
+alter table public.garage_tools enable row level security;
+grant select, insert, update, delete on public.garage_tools to authenticated;
+
+drop policy if exists "Household members can read tools" on public.garage_tools;
+create policy "Household members can read tools"
+  on public.garage_tools
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.household_members
+      where user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Household members can add tools" on public.garage_tools;
+create policy "Household members can add tools"
+  on public.garage_tools
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1
+      from public.household_members
+      where user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Household members can update tools" on public.garage_tools;
+create policy "Household members can update tools"
+  on public.garage_tools
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.household_members
+      where user_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.household_members
+      where user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Household members can delete tools" on public.garage_tools;
+create policy "Household members can delete tools"
+  on public.garage_tools
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.household_members
+      where user_id = auth.uid()
+    )
+  );
+
 insert into public.clothing_items (id, description, owner)
 select
   garage_item->>'id',
@@ -205,6 +272,20 @@ where garage_item->>'garageType' = 'roba'
   and garage_item->>'name' is not null
 on conflict (id) do nothing;
 
+insert into public.garage_tools (id, description)
+select
+  garage_item->>'id',
+  coalesce(
+    nullif(concat_ws(E'\n\n', nullif(trim(garage_item->>'name'), ''), nullif(trim(garage_item->>'detail'), '')), ''),
+    'Sense descripció'
+  )
+from public.household_data as household
+cross join lateral jsonb_array_elements(coalesce(household.items->'garatge', '[]'::jsonb)) as garage(garage_item)
+where garage_item->>'garageType' = 'eines'
+  and garage_item->>'id' is not null
+  and garage_item->>'name' is not null
+on conflict (id) do nothing;
+
 update public.household_data as household
 set items = jsonb_set(
   household.items,
@@ -212,7 +293,8 @@ set items = jsonb_set(
   coalesce((
     select jsonb_agg(garage_item order by ordinal)
     from jsonb_array_elements(coalesce(household.items->'garatge', '[]'::jsonb)) with ordinality as garage(garage_item, ordinal)
-    where garage_item->>'garageType' is distinct from 'roba'
+    where (garage_item->>'garageType' is distinct from 'roba'
+      and garage_item->>'garageType' is distinct from 'eines')
       or garage_item->>'id' is null
       or garage_item->>'name' is null
   ), '[]'::jsonb),
@@ -222,7 +304,10 @@ updated_at = now()
 where exists (
   select 1
   from jsonb_array_elements(coalesce(household.items->'garatge', '[]'::jsonb)) as garage(garage_item)
-  where garage_item->>'garageType' = 'roba'
+  where (
+      garage_item->>'garageType' = 'roba'
+      or garage_item->>'garageType' = 'eines'
+    )
     and garage_item->>'id' is not null
     and garage_item->>'name' is not null
 );
