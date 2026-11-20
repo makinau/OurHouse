@@ -823,6 +823,11 @@
             password: document.getElementById("login-password").value
           });
           if (error) {
+            console.error("Supabase authentication failed.", {
+              message: error.message,
+              status: error.status,
+              code: error.code
+            });
             loginError.textContent = "No s'ha pogut iniciar la sessió. Comprova el correu, la contrasenya i que el compte estigui autoritzat.";
             return;
           }
