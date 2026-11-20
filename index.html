@@ -318,6 +318,7 @@
     .garage-list-row-icon { color: var(--muted); text-align: center !important; }
     .garage-list-description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .garage-list-actions { display: flex; justify-content: flex-end; gap: 2px; }
+    .garage-list-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
     @media (max-width: 650px) {
       .garage-list-table th, .garage-list-table td { padding: 7px 6px; }
@@ -609,6 +610,8 @@
       let currentCategory = "pis";
       let garageFilter = "tots";
       let clothingFilter = "tots";
+      let clothingListVisible = true;
+      let toolListVisible = true;
       let editingId = null;
       let toastTimer;
       const dialog = document.getElementById("item-dialog");
@@ -956,17 +959,23 @@
           <div class="garage-list-section">
             <div class="section-heading garage-list-heading">
               <div><h3>Roba guardada</h3><p class="section-subtitle">Llista de peces de roba i de qui són.</p></div>
-              <button class="add-button" type="button" data-action="garage-list-add" data-list="roba"><span aria-hidden="true">＋</span> Afegir roba</button>
+              <div class="garage-list-controls">
+                <button class="secondary-button" type="button" data-action="garage-list-toggle" data-list="roba"
+                  aria-expanded="${clothingListVisible}" aria-controls="clothing-list-content">${clothingListVisible ? "Amaga la llista" : "Mostra la llista"}</button>
+                <button class="add-button" type="button" data-action="garage-list-add" data-list="roba"><span aria-hidden="true">＋</span> Afegir roba</button>
+              </div>
             </div>
-            <div class="garage-filters" aria-label="Filtrar roba per persona">
-              ${[["tots", "Tothom"], ...owners.map(owner => [owner, owner])].map(([key, label]) => `
-                <button class="garage-filter${clothingFilter === key ? " active" : ""}" type="button"
-                  data-action="clothing-filter" data-filter="${key}" aria-pressed="${clothingFilter === key}">${label}</button>`).join("")}
+            <div id="clothing-list-content"${clothingListVisible ? "" : " hidden"}>
+              <div class="garage-filters" aria-label="Filtrar roba per persona">
+                ${[["tots", "Tothom"], ...owners.map(owner => [owner, owner])].map(([key, label]) => `
+                  <button class="garage-filter${clothingFilter === key ? " active" : ""}" type="button"
+                    data-action="clothing-filter" data-filter="${key}" aria-pressed="${clothingFilter === key}">${label}</button>`).join("")}
+              </div>
+              ${rows ? `<table class="garage-list-table clothing-table" aria-label="Roba guardada">
+                <thead><tr><th scope="col" aria-label="Peça"></th><th scope="col">Descripció</th><th scope="col">De qui</th><th scope="col">Accions</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>` : `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}
             </div>
-            ${rows ? `<table class="garage-list-table clothing-table" aria-label="Roba guardada">
-              <thead><tr><th scope="col" aria-label="Peça"></th><th scope="col">Descripció</th><th scope="col">De qui</th><th scope="col">Accions</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>` : `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}
           </div>`;
       }
 
@@ -984,12 +993,18 @@
           <div class="garage-list-section">
             <div class="section-heading garage-list-heading">
               <div><h3>Eines guardades</h3><p class="section-subtitle">Llista d'eines del garatge.</p></div>
-              <button class="add-button" type="button" data-action="garage-list-add" data-list="eines"><span aria-hidden="true">＋</span> Afegir eina</button>
+              <div class="garage-list-controls">
+                <button class="secondary-button" type="button" data-action="garage-list-toggle" data-list="eines"
+                  aria-expanded="${toolListVisible}" aria-controls="tools-list-content">${toolListVisible ? "Amaga la llista" : "Mostra la llista"}</button>
+                <button class="add-button" type="button" data-action="garage-list-add" data-list="eines"><span aria-hidden="true">＋</span> Afegir eina</button>
+              </div>
             </div>
-            ${rows ? `<table class="garage-list-table tools-table" aria-label="Eines guardades">
-              <thead><tr><th scope="col" aria-label="Eina"></th><th scope="col">Descripció</th><th scope="col">Accions</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>` : `<div class="empty-state">Encara no hi ha eines guardades. Afegeix-ne la primera.</div>`}
+            <div id="tools-list-content"${toolListVisible ? "" : " hidden"}>
+              ${rows ? `<table class="garage-list-table tools-table" aria-label="Eines guardades">
+                <thead><tr><th scope="col" aria-label="Eina"></th><th scope="col">Descripció</th><th scope="col">Accions</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>` : `<div class="empty-state">Encara no hi ha eines guardades. Afegeix-ne la primera.</div>`}
+            </div>
           </div>`;
       }
 
@@ -1130,6 +1145,12 @@
         }
         if (action === "clothing-filter") {
           clothingFilter = actionButton.dataset.filter;
+          render();
+          return;
+        }
+        if (action === "garage-list-toggle") {
+          if (actionButton.dataset.list === "roba") clothingListVisible = !clothingListVisible;
+          else toolListVisible = !toolListVisible;
           render();
           return;
         }
