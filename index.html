@@ -351,6 +351,21 @@
 
     .clothing-section { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
     .clothing-heading h3 { margin: 0; font-size: 18px; }
+    .clothing-table { width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid var(--line); background: var(--card); }
+    .clothing-table th, .clothing-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+    .clothing-table th { color: var(--muted); font-size: 11px; font-weight: 700; }
+    .clothing-table th:nth-child(2) { width: 92px; }
+    .clothing-table th:last-child { width: 76px; text-align: right; }
+    .clothing-table tbody tr:last-child td { border-bottom: 0; }
+    .clothing-table .item-extra { max-width: 100%; margin-top: 0; padding: 4px 6px; white-space: nowrap; }
+    .clothing-description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .clothing-actions { display: flex; justify-content: flex-end; gap: 2px; }
+
+    @media (max-width: 650px) {
+      .clothing-table th, .clothing-table td { padding: 7px 6px; }
+      .clothing-table th:nth-child(2) { width: 82px; }
+      .clothing-table th:last-child { width: 68px; }
+    }
 
     .empty-state {
       grid-column: 1 / -1;
@@ -982,15 +997,15 @@
         const visibleItems = clothingFilter === "tots"
           ? clothingItems
           : clothingItems.filter(item => item.owner === clothingFilter);
-        const cards = visibleItems.map(item => `
-          <article class="item-card">
-            <div class="card-actions">
+        const rows = visibleItems.map(item => `
+          <tr>
+            <td class="clothing-description" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
+            <td><span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner || "Sense etiqueta")}</span></td>
+            <td><div class="clothing-actions">
               <button class="icon-button" type="button" aria-label="Editar roba" data-action="clothing-edit" data-id="${escapeHtml(item.id)}">✎</button>
               <button class="icon-button delete" type="button" aria-label="Eliminar roba" data-action="clothing-delete" data-id="${escapeHtml(item.id)}">×</button>
-            </div>
-            <p class="item-detail">${escapeHtml(item.description)}</p>
-            <span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner || "Sense etiqueta")}</span>
-          </article>`).join("");
+            </div></td>
+          </tr>`).join("");
         return `
           <div class="clothing-section">
             <div class="section-heading clothing-heading">
@@ -1002,7 +1017,10 @@
                 <button class="garage-filter${clothingFilter === key ? " active" : ""}" type="button"
                   data-action="clothing-filter" data-filter="${key}" aria-pressed="${clothingFilter === key}">${label}</button>`).join("")}
             </div>
-            <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}</div>
+            ${rows ? `<table class="clothing-table" aria-label="Roba guardada">
+              <thead><tr><th scope="col">Descripció</th><th scope="col">De qui</th><th scope="col">Accions</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>` : `<div class="empty-state">Encara no hi ha roba guardada. Afegeix la primera peça.</div>`}
           </div>`;
       }
 
