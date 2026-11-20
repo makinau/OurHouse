@@ -768,10 +768,9 @@
       async function loadClothingItems(legacyItems = []) {
         if (legacyItems.length) {
           const validOwners = ["Ernest", "Queralt", "Dani", "Estel"];
-          const legacyRows = legacyItems.filter(item => item.id && item.name).map(item => ({
+          const legacyRows = legacyItems.filter(item => item.id && (item.name || item.detail)).map(item => ({
             id: item.id,
-            name: item.name,
-            detail: item.detail || "",
+            description: [item.name, item.detail].filter(Boolean).join("\n\n") || "Sense descripció",
             owner: validOwners.includes(item.owner) ? item.owner : null
           }));
           if (legacyRows.length) {
@@ -781,8 +780,7 @@
         }
         const { data, error } = await supabase
           .from("clothing_items")
-          .select("id, name, detail, owner, created_at")
-          .order("created_at", { ascending: true });
+          .select("id, description, owner");
         if (error) throw error;
         clothingItems = data;
       }
@@ -987,11 +985,10 @@
         const cards = visibleItems.map(item => `
           <article class="item-card">
             <div class="card-actions">
-              <button class="icon-button" type="button" aria-label="Editar ${escapeHtml(item.name)}" data-action="clothing-edit" data-id="${escapeHtml(item.id)}">✎</button>
-              <button class="icon-button delete" type="button" aria-label="Eliminar ${escapeHtml(item.name)}" data-action="clothing-delete" data-id="${escapeHtml(item.id)}">×</button>
+              <button class="icon-button" type="button" aria-label="Editar roba" data-action="clothing-edit" data-id="${escapeHtml(item.id)}">✎</button>
+              <button class="icon-button delete" type="button" aria-label="Eliminar roba" data-action="clothing-delete" data-id="${escapeHtml(item.id)}">×</button>
             </div>
-            <p class="item-title">${escapeHtml(item.name)}</p>
-            <p class="item-detail">${escapeHtml(item.detail || "Sense detalls.")}</p>
+            <p class="item-detail">${escapeHtml(item.description)}</p>
             <span class="item-extra owner-tag ${ownerTagClasses[item.owner] || ""}">${escapeHtml(item.owner || "Sense etiqueta")}</span>
           </article>`).join("");
         return `
@@ -1060,6 +1057,11 @@
       function openForm(category, item = null) {
         currentCategory = category;
         editingId = item?.id ?? null;
+        nameInput.closest(".field").hidden = false;
+        nameInput.required = true;
+        detailInput.required = false;
+        detailInput.labels[0].textContent = "Detalls";
+        detailInput.placeholder = "Adreça, número de client, contacte, notes…";
         document.getElementById("dialog-category").textContent = categories[category].title;
         document.getElementById("dialog-title").textContent = item ? "Editar informació" : "Afegir informació";
         nameInput.value = item?.name ?? "";
@@ -1086,8 +1088,13 @@
         editingId = item?.id ?? null;
         document.getElementById("dialog-category").textContent = "Roba guardada";
         document.getElementById("dialog-title").textContent = item ? "Editar peça de roba" : "Afegir peça de roba";
-        nameInput.value = item?.name ?? "";
-        detailInput.value = item?.detail ?? "";
+        nameInput.value = "";
+        nameInput.required = false;
+        nameInput.closest(".field").hidden = true;
+        detailInput.labels[0].textContent = "Descripció";
+        detailInput.placeholder = "Descriu la peça de roba…";
+        detailInput.required = true;
+        detailInput.value = item?.description ?? "";
         clothingOwnerInput.value = item?.owner ?? "";
         garageTypeField.hidden = true;
         clothingOwnerField.hidden = false;
@@ -1098,7 +1105,7 @@
         linkInput.value = "";
         pdfInput.value = "";
         dialog.showModal();
-        nameInput.focus();
+        detailInput.focus();
       }
 
       garageTypeInput.addEventListener("change", () => {
@@ -1149,7 +1156,7 @@
         }
         if (action === "clothing-delete") {
           const clothingItem = clothingItems.find(entry => entry.id === id);
-          if (!clothingItem || !window.confirm(`Vols eliminar «${clothingItem.name}»?`)) return;
+          if (!clothingItem || !window.confirm("Vols eliminar aquesta peça de roba?")) return;
           try {
             const { error } = await supabase.from("clothing_items").delete().eq("id", id);
             if (error) throw error;
@@ -1219,9 +1226,11 @@
 
       form.addEventListener("submit", async event => {
         event.preventDefault();
+        const isClothing = currentCategory === "roba";
         const name = nameInput.value.trim();
-        if (!name) {
-          nameInput.focus();
+        const description = detailInput.value.trim();
+        if (isClothing ? !description : !name) {
+          (isClothing ? detailInput : nameInput).focus();
           return;
         }
         const link = linkInput.value.trim();
@@ -1233,20 +1242,18 @@
           try {
             const clothingItem = {
               id: editingId || `roba-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              name,
-              detail: detailInput.value.trim(),
+              description,
               owner: clothingOwnerInput.value
             };
             const { data, error } = await supabase
               .from("clothing_items")
               .upsert(clothingItem)
-              .select("id, name, detail, owner, created_at")
+              .select("id, description, owner")
               .single();
             if (error) throw error;
             const existingIndex = clothingItems.findIndex(item => item.id === editingId);
             if (existingIndex >= 0) clothingItems[existingIndex] = data;
             else clothingItems.push(data);
-            clothingItems.sort((first, second) => first.created_at.localeCompare(second.created_at));
             render();
             dialog.close();
             showToast(editingId ? "Canvis desats." : "Peça afegida.");

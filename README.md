@@ -28,10 +28,10 @@ kept in `sessionStorage`; household records and PDFs are stored in Supabase.
    website's deployed address, then publish the static site.
 
 The garage has a separate clothing list stored in `public.clothing_items`.
-Each item has a name, optional details, and an owner (Ernest, Queralt, Dani, or
-Estel). If the project was already configured, run `supabase/schema.sql` again
-to create the table and move existing garage clothing entries into it. This
-migration is safe to rerun.
+Each item has a description and an owner (Ernest, Queralt, Dani, or Estel). If
+the project was already configured, run `supabase/schema.sql` again to update
+the table and move existing garage clothing entries into it. This migration is
+safe to rerun.
 
 The first authorized sign-in creates the household record. Existing
 `ourhouse-items-v1` Local Storage data is migrated to Supabase; if a server

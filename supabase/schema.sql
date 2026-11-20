@@ -69,11 +69,61 @@ create policy "Household members can update data"
 
 create table if not exists public.clothing_items (
   id text primary key,
-  name text not null check (length(trim(name)) > 0),
-  detail text not null default '',
-  owner text check (owner in ('Ernest', 'Queralt', 'Dani', 'Estel')),
-  created_at timestamptz not null default now()
+  description text not null check (length(trim(description)) > 0),
+  owner text check (owner in ('Ernest', 'Queralt', 'Dani', 'Estel'))
 );
+
+alter table public.clothing_items add column if not exists description text;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'clothing_items' and column_name = 'name'
+  ) and exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'clothing_items' and column_name = 'detail'
+  ) then
+    execute $migration$
+      update public.clothing_items
+      set description = concat_ws(E'\n\n', nullif(trim(name), ''), nullif(trim(detail), ''))
+      where description is null or length(trim(description)) = 0
+    $migration$;
+  elsif exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'clothing_items' and column_name = 'name'
+  ) then
+    execute $migration$
+      update public.clothing_items
+      set description = nullif(trim(name), '')
+      where description is null or length(trim(description)) = 0
+    $migration$;
+  end if;
+end $$;
+
+update public.clothing_items
+set description = 'Sense descripció'
+where description is null or length(trim(description)) = 0;
+
+alter table public.clothing_items alter column description set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'clothing_items_description_check'
+      and conrelid = 'public.clothing_items'::regclass
+  ) then
+    alter table public.clothing_items
+      add constraint clothing_items_description_check check (length(trim(description)) > 0);
+  end if;
+end $$;
+
+alter table public.clothing_items
+  drop column if exists name,
+  drop column if exists detail,
+  drop column if exists created_at;
 
 alter table public.clothing_items enable row level security;
 grant select, insert, update, delete on public.clothing_items to authenticated;
@@ -137,11 +187,13 @@ create policy "Household members can delete clothing"
     )
   );
 
-insert into public.clothing_items (id, name, detail, owner)
+insert into public.clothing_items (id, description, owner)
 select
   garage_item->>'id',
-  garage_item->>'name',
-  coalesce(garage_item->>'detail', ''),
+  coalesce(
+    nullif(concat_ws(E'\n\n', nullif(trim(garage_item->>'name'), ''), nullif(trim(garage_item->>'detail'), '')), ''),
+    'Sense descripció'
+  ),
   case
     when garage_item->>'owner' in ('Ernest', 'Queralt', 'Dani', 'Estel') then garage_item->>'owner'
     else null
