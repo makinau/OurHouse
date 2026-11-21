@@ -33,7 +33,11 @@ the project was already configured, run `supabase/schema.sql` again to update
 the table and move existing garage clothing entries into it. This migration is
 safe to rerun. Garage tools are stored separately in `public.garage_tools`,
 with a description for each tool; rerun the schema to create the table and
-move existing garage tools into it.
+move existing garage tools into it. Garage products (such as paint, solvents,
+and sprays) are stored separately in `public.garage_products`, with only a
+description and an optional expiry date; rerun the schema to create the table
+and move existing garage product entries into it. The clothing, tools, and
+products lists can each be hidden independently.
 
 The first authorized sign-in creates the household record. Existing
 `ourhouse-items-v1` Local Storage data is migrated to Supabase; if a server

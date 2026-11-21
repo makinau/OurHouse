@@ -311,7 +311,8 @@
     .garage-list-table th, .garage-list-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
     .garage-list-table th { color: var(--muted); font-size: 11px; font-weight: 700; }
     .garage-list-table th:first-child { width: 34px; }
-    .garage-list-table.clothing-table th:nth-child(3) { width: 92px; }
+    .garage-list-table.clothing-table th:nth-child(3),
+    .garage-list-table.products-table th:nth-child(3) { width: 120px; }
     .garage-list-table th:last-child { width: 76px; text-align: right; }
     .garage-list-table tbody tr:last-child td { border-bottom: 0; }
     .garage-list-table .item-extra { max-width: 100%; margin-top: 0; padding: 4px 6px; white-space: nowrap; }
@@ -323,7 +324,8 @@
     @media (max-width: 650px) {
       .garage-list-table th, .garage-list-table td { padding: 7px 6px; }
       .garage-list-table th:first-child { width: 28px; }
-      .garage-list-table.clothing-table th:nth-child(3) { width: 82px; }
+      .garage-list-table.clothing-table th:nth-child(3),
+      .garage-list-table.products-table th:nth-child(3) { width: 100px; }
       .garage-list-table th:last-child { width: 68px; }
     }
 
@@ -517,7 +519,6 @@
       <div class="field" id="garage-type-field" hidden>
         <label for="garage-type">Apartat del garatge</label>
         <select id="garage-type" name="garageType">
-          <option value="drogueria">Producte de drogueria</option>
           <option value="residus">Residus per tirar</option>
           <option value="altres">Altres</option>
         </select>
@@ -571,7 +572,6 @@
         })
         : null;
       const garageTypes = {
-        drogueria: "Producte de drogueria",
         residus: "Residus per tirar",
         altres: "Altres"
       };
@@ -583,7 +583,7 @@
       };
       const categories = {
         pis: { title: "El pis", subtitle: "Dades, manteniment i informació important de l'habitatge.", icon: "⌂", singular: "element" },
-        garatge: { title: "El garatge", subtitle: "Informació útil de la plaça, els vehicles, l'accés, la roba i les eines.", icon: "▤", singular: "element" },
+        garatge: { title: "El garatge", subtitle: "Informació útil de la plaça, els vehicles, l'accés, la roba, les eines i els productes.", icon: "▤", singular: "element" },
         serveis: { title: "Serveis contractats", subtitle: "Proveïdors, dades de client i informació de contacte.", icon: "◉", singular: "servei" },
         planols: { title: "Plànols", subtitle: "Plànols i documents tècnics de casa en un sol lloc.", icon: "▧", singular: "plànol" },
         documents: { title: "Documents importants", subtitle: "Hipoteca, escriptures i altres documents importants de la llar.", icon: "▣", singular: "document" }
@@ -607,11 +607,13 @@
       let items;
       let clothingItems = [];
       let toolItems = [];
+      let productItems = [];
       let currentCategory = "pis";
       let garageFilter = "tots";
       let clothingFilter = "tots";
       let clothingListVisible = true;
       let toolListVisible = true;
+      let productListVisible = true;
       let editingId = null;
       let toastTimer;
       const dialog = document.getElementById("item-dialog");
@@ -673,7 +675,8 @@
         if (saved) legacyItems = normalizeItems(JSON.parse(saved));
         const legacyClothing = legacyItems?.garatge.filter(item => item.garageType === "roba") ?? [];
         const legacyTools = legacyItems?.garatge.filter(item => item.garageType === "eines") ?? [];
-        if (legacyItems) legacyItems.garatge = legacyItems.garatge.filter(item => !["roba", "eines"].includes(item.garageType));
+        const legacyProducts = legacyItems?.garatge.filter(item => item.garageType === "drogueria") ?? [];
+        if (legacyItems) legacyItems.garatge = legacyItems.garatge.filter(item => !["roba", "eines", "drogueria"].includes(item.garageType));
 
         let row = await getStoredData();
         let legacyImported = false;
@@ -698,6 +701,7 @@
         dataVersion = row.updated_at;
         await loadClothingItems(legacyClothing);
         await loadToolItems(legacyTools);
+        await loadProductItems(legacyProducts);
         if (legacyItems) {
           if (legacyImported || JSON.stringify(legacyItems) === JSON.stringify(items)) {
             localStorage.removeItem(STORAGE_KEY);
@@ -747,6 +751,23 @@
           .select("id, description");
         if (error) throw error;
         toolItems = data;
+      }
+
+      async function loadProductItems(legacyItems = []) {
+        const legacyRows = legacyItems.filter(item => item.id && (item.name || item.detail)).map(item => ({
+          id: item.id,
+          description: [item.name, item.detail].filter(Boolean).join("\n\n") || "Sense descripció",
+          expiry: item.expiry || null
+        }));
+        if (legacyRows.length) {
+          const { error } = await supabase.from("garage_products").upsert(legacyRows);
+          if (error) throw error;
+        }
+        const { data, error } = await supabase
+          .from("garage_products")
+          .select("id, description, expiry");
+        if (error) throw error;
+        productItems = data;
       }
 
       async function saveItems(previousItems) {
@@ -923,7 +944,6 @@
               <p class="item-title">${escapeHtml(item.name)}</p>
               <p class="item-detail">${escapeHtml(item.detail || "Sense detalls.")}</p>
               ${key === "garatge" && item.garageType ? `<span class="item-extra">${escapeHtml(garageTypes[item.garageType] || garageTypes.altres)}</span>` : ""}
-              ${key === "garatge" && item.garageType === "drogueria" && item.expiry ? renderExpiry(item.expiry) : ""}
               ${key === "serveis" ? '<span class="item-extra">Contractat</span>' : ""}
               ${key === "pis" && item.name.toLowerCase().includes("garantia") ? '<span class="item-extra warning">Revisa les dates</span>' : ""}
               ${key === "planols" && item.link && isSafeLink(item.link) ? `<a class="item-link" href="${escapeHtml(item.link)}" target="_blank" rel="noopener noreferrer">Obrir document ↗</a>` : ""}
@@ -936,7 +956,7 @@
             </div>
             ${key === "garatge" ? renderGarageFilters() : ""}
             <div class="item-grid">${cards || `<div class="empty-state">Encara no hi ha cap ${category.singular}. Afegeix-ne un per tenir-lo a mà.</div>`}</div>
-            ${key === "garatge" ? renderClothingSection() + renderToolSection() : ""}`;
+            ${key === "garatge" ? renderClothingSection() + renderToolSection() + renderProductSection() : ""}`;
         }
       }
 
@@ -1008,10 +1028,39 @@
           </div>`;
       }
 
+      function renderProductSection() {
+        const rows = productItems.map(item => `
+          <tr>
+            <td class="garage-list-row-icon" aria-hidden="true">🧴</td>
+            <td class="garage-list-description" title="${escapeHtml(item.description)}">${escapeHtml(item.description)}</td>
+            <td>${item.expiry ? renderExpiry(item.expiry) : "—"}</td>
+            <td><div class="garage-list-actions">
+              <button class="icon-button" type="button" aria-label="Editar producte" data-action="garage-list-edit" data-list="productes" data-id="${escapeHtml(item.id)}">✎</button>
+              <button class="icon-button delete" type="button" aria-label="Eliminar producte" data-action="garage-list-delete" data-list="productes" data-id="${escapeHtml(item.id)}">×</button>
+            </div></td>
+          </tr>`).join("");
+        return `
+          <div class="garage-list-section">
+            <div class="section-heading garage-list-heading">
+              <div><h3>Productes</h3><p class="section-subtitle">Pintures, dissolvents, esprais i altres productes del garatge.</p></div>
+              <div class="garage-list-controls">
+                <button class="secondary-button" type="button" data-action="garage-list-toggle" data-list="productes"
+                  aria-expanded="${productListVisible}" aria-controls="products-list-content">${productListVisible ? "Amaga la llista" : "Mostra la llista"}</button>
+                <button class="add-button" type="button" data-action="garage-list-add" data-list="productes"><span aria-hidden="true">＋</span> Afegir producte</button>
+              </div>
+            </div>
+            <div id="products-list-content"${productListVisible ? "" : " hidden"}>
+              ${rows ? `<table class="garage-list-table products-table" aria-label="Productes del garatge">
+                <thead><tr><th scope="col" aria-label="Producte"></th><th scope="col">Descripció</th><th scope="col">Caducitat</th><th scope="col">Accions</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>` : `<div class="empty-state">Encara no hi ha productes guardats. Afegeix-ne el primer.</div>`}
+            </div>
+          </div>`;
+      }
+
       function renderGarageFilters() {
         const filters = {
           tots: "Tot",
-          drogueria: "Drogueria",
           residus: "Residus",
           altres: "Altres"
         };
@@ -1086,23 +1135,25 @@
 
       function openGarageListForm(listType, item = null) {
         const isClothing = listType === "roba";
-        const label = isClothing ? "roba" : "eina";
+        const isProduct = listType === "productes";
+        const label = isClothing ? "roba" : isProduct ? "producte" : "eina";
         currentCategory = listType;
         editingId = item?.id ?? null;
-        document.getElementById("dialog-category").textContent = isClothing ? "Roba guardada" : "Eines guardades";
+        document.getElementById("dialog-category").textContent = isClothing ? "Roba guardada" : isProduct ? "Productes" : "Eines guardades";
         document.getElementById("dialog-title").textContent = item ? `Editar ${label}` : `Afegir ${label}`;
         nameInput.value = "";
         nameInput.required = false;
         nameInput.closest(".field").hidden = true;
         detailInput.labels[0].textContent = "Descripció";
-        detailInput.placeholder = isClothing ? "Descriu la peça de roba…" : "Descriu l'eina…";
+        detailInput.placeholder = isClothing ? "Descriu la peça de roba…" : isProduct ? "Descriu el producte…" : "Descriu l'eina…";
         detailInput.required = true;
         detailInput.value = item?.description ?? "";
         clothingOwnerInput.value = item?.owner ?? "";
         clothingOwnerField.hidden = !isClothing;
         clothingOwnerInput.required = isClothing;
         garageTypeField.hidden = true;
-        expiryField.hidden = true;
+        expiryField.hidden = !isProduct;
+        expiryInput.value = item?.expiry ?? "";
         linkField.hidden = true;
         pdfField.hidden = true;
         linkInput.value = "";
@@ -1116,10 +1167,9 @@
       });
 
       function updateGarageFields() {
-        const isGarage = currentCategory === "garatge";
         clothingOwnerField.hidden = true;
         clothingOwnerInput.required = false;
-        expiryField.hidden = !isGarage || garageTypeInput.value !== "drogueria";
+        expiryField.hidden = true;
         if (expiryField.hidden) expiryInput.value = "";
       }
 
@@ -1150,7 +1200,8 @@
         }
         if (action === "garage-list-toggle") {
           if (actionButton.dataset.list === "roba") clothingListVisible = !clothingListVisible;
-          else toolListVisible = !toolListVisible;
+          else if (actionButton.dataset.list === "eines") toolListVisible = !toolListVisible;
+          else productListVisible = !productListVisible;
           render();
           return;
         }
@@ -1160,7 +1211,7 @@
         }
         if (action === "garage-list-edit") {
           const listType = actionButton.dataset.list;
-          const list = listType === "roba" ? clothingItems : toolItems;
+          const list = listType === "roba" ? clothingItems : listType === "eines" ? toolItems : productItems;
           const item = list.find(entry => entry.id === id);
           if (item) openGarageListForm(listType, item);
           return;
@@ -1168,15 +1219,19 @@
         if (action === "garage-list-delete") {
           const listType = actionButton.dataset.list;
           const isClothing = listType === "roba";
-          const list = isClothing ? clothingItems : toolItems;
-          if (!list.some(entry => entry.id === id) || !window.confirm(`Vols eliminar aquesta ${isClothing ? "peça de roba" : "eina"}?`)) return;
+          const isProduct = listType === "productes";
+          const list = isClothing ? clothingItems : isProduct ? productItems : toolItems;
+          const label = isClothing ? "peça de roba" : isProduct ? "producte" : "eina";
+          const table = isClothing ? "clothing_items" : isProduct ? "garage_products" : "garage_tools";
+          if (!list.some(entry => entry.id === id) || !window.confirm(`Vols eliminar ${isClothing ? "aquesta peça de roba" : `aquest ${label}`}?`)) return;
           try {
-            const { error } = await supabase.from(isClothing ? "clothing_items" : "garage_tools").delete().eq("id", id);
+            const { error } = await supabase.from(table).delete().eq("id", id);
             if (error) throw error;
             if (isClothing) clothingItems = clothingItems.filter(entry => entry.id !== id);
+            else if (isProduct) productItems = productItems.filter(entry => entry.id !== id);
             else toolItems = toolItems.filter(entry => entry.id !== id);
             render();
-            showToast(isClothing ? "Peça eliminada." : "Eina eliminada.");
+            showToast(isClothing ? "Peça eliminada." : isProduct ? "Producte eliminat." : "Eina eliminada.");
           } catch (error) {
             console.error("No s'ha pogut eliminar l'element del garatge.", error);
             showToast("No s'ha pogut eliminar l'element. Comprova la connexió i els permisos.");
@@ -1241,7 +1296,8 @@
       form.addEventListener("submit", async event => {
         event.preventDefault();
         const isClothing = currentCategory === "roba";
-        const isGarageList = isClothing || currentCategory === "eines";
+        const isProduct = currentCategory === "productes";
+        const isGarageList = isClothing || isProduct || currentCategory === "eines";
         const name = nameInput.value.trim();
         const description = detailInput.value.trim();
         if (isGarageList ? !description : !name) {
@@ -1258,21 +1314,25 @@
             const listItem = {
               id: editingId || `${currentCategory}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               description,
-              ...(isClothing ? { owner: clothingOwnerInput.value } : {})
+              ...(isClothing ? { owner: clothingOwnerInput.value } : {}),
+              ...(isProduct ? { expiry: expiryInput.value || null } : {})
             };
+            const table = isClothing ? "clothing_items" : isProduct ? "garage_products" : "garage_tools";
+            const selection = isClothing ? "id, description, owner" : isProduct ? "id, description, expiry" : "id, description";
             const { data, error } = await supabase
-              .from(isClothing ? "clothing_items" : "garage_tools")
+              .from(table)
               .upsert(listItem)
-              .select(isClothing ? "id, description, owner" : "id, description")
+              .select(selection)
               .single();
             if (error) throw error;
-            const list = isClothing ? clothingItems : toolItems;
+            const list = isClothing ? clothingItems : isProduct ? productItems : toolItems;
             const existingIndex = list.findIndex(item => item.id === editingId);
             if (existingIndex >= 0) list[existingIndex] = data;
             else list.push(data);
+            if (isProduct) productItems = list;
             render();
             dialog.close();
-            showToast(editingId ? "Canvis desats." : isClothing ? "Peça afegida." : "Eina afegida.");
+            showToast(editingId ? "Canvis desats." : isClothing ? "Peça afegida." : isProduct ? "Producte afegit." : "Eina afegida.");
           } catch (error) {
             console.error("No s'ha pogut desar l'element del garatge.", error);
             showToast("No s'ha pogut desar l'element. Comprova la connexió i els permisos.");
@@ -1317,8 +1377,7 @@
           detail: detailInput.value.trim(),
           ...(currentCategory === "garatge" ? {
             garageType: garageTypeInput.value,
-            ...(garageTypeInput.value === "roba" ? { owner: clothingOwnerInput.value } : {}),
-            ...(garageTypeInput.value === "drogueria" && expiryInput.value ? { expiry: expiryInput.value } : {})
+            ...(garageTypeInput.value === "roba" ? { owner: clothingOwnerInput.value } : {})
           } : {}),
           ...(currentCategory === "planols" ? {
             link,
